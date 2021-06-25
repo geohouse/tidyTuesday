@@ -249,10 +249,71 @@ ggplotly(total_pct_through_time_2)
 
 
 score_spend <- all_data_add_pct %>% 
-  ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct, label = city)) + geom_point() + facet_wrap(~year) + theme_bw() + geom_smooth(method = "lm")
+  ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct, label = city)) + geom_point() + facet_wrap(~year) + theme_bw() 
 
 ggplotly(score_spend)
 
 
 
 ```
+
+
+### Looking at the 2020 data in particular, it looks like there is diminishing returns for increasing scores with spending above $200 per resident. Exploring that more here.
+
+```{r return on investment threshold}
+
+# Try lm for 2020 below $200 spend compared to all cities. Looks like highly diminishing returns above $200 speding.
+
+data_subset_2020 <- all_data_add_pct[which(all_data_add_pct$year == 2020),]
+
+data_2020_plot <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct)) + geom_point() + theme_bw() + geom_vline(xintercept = 200, color = "red")
+
+data_2020_plot
+```
+
+#### If we look at linear models fit on the whole dataset and only fit for the cities with spending of at most $200 per resident, a linear model fits better when only cities with spending at most $200. This is the case when looking at just the adjusted R^2 values ... 
+```{r roi threshold lm models}
+
+
+
+lm_fullSet <- lm(data_subset_2020$emp_pct ~ data_subset_2020$spend_per_resident_data)
+
+fullSet_r2 <- summary(lm_fullSet)$adj.r.squared
+
+data_subset_2020_ltet200spend <- data_subset_2020[which(data_subset_2020$spend_per_resident_data <= 200),]
+
+lm_ltet200spend <- lm(data_subset_2020_ltet200spend$emp_pct ~ data_subset_2020_ltet200spend$spend_per_resident_data)
+
+ltet200spend_r2 <- summary(lm_ltet200spend)$adj.r.squared
+
+knitr::kable(data.frame("adj_rSquare_allData" = fullSet_r2, "adj_rSquare_spendingAtMost200" = ltet200spend_r2))
+
+```
+
+#### This better model fit for the reduced model is also apparent when looking at the model residuals as a function of per capita spending. The residuals from the full model show a clear trend for cities with more spending, but are more randomly occurring in the model only considering cities with at most $200 per capita spending.
+
+```{r roi fit models plots}
+library(gridExtra)
+
+plot_2020_all_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct)) + geom_point() + theme_bw() + geom_abline(intercept = lm_fullSet$coefficients[1], slope = lm_fullSet$coefficients[2], color = "red") + xlab("Per capita annual spending on parks ($)") + ylab("Fractional score for each \ncities' parks (1 is best)") + ggtitle("Linear model fit to all 2020 data")
+
+# Add a marker vector for cities that have per captita spending of more than $200 annually and those that have less. The TRUE statement acts like if/else, to catch anything not set in the first test.
+data_subset_2020 <- data_subset_2020 %>% mutate(`per capita break` = case_when(spend_per_resident_data <= 200 ~ "<= $200", TRUE ~ "> $200"))
+
+plot_2020_ltet200_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct, color = `per capita break`)) + geom_point() + theme_bw() + geom_abline(intercept = lm_ltet200spend$coefficients[1], slope = lm_ltet200spend$coefficients[2], color = "red") + xlab("Per capita annual spending on parks ($)") + ylab("Fractional score for each \ncities' parks (1 is best)") + ggtitle("Linear model fit only for cities with <= $200 per capita spending") + scale_colour_manual(values=setNames(c("black", "light gray"), c("<= $200", "> $200")), guide = FALSE)
+
+# Set up data frames with the residual values for easy plotting
+resid_all_2020 <- data.frame("spend_per_resident" = data_subset_2020$spend_per_resident_data, "residuals" = lm_fullSet$residuals)
+
+resid_ltet200_2020 <- data.frame("spend_per_resident" = data_subset_2020_ltet200spend$spend_per_resident_data, "residuals" = lm_ltet200spend$residuals)
+
+plot_2020_all_resid <- resid_all_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit to all 2020 data")
+
+plot_2020_ltet200_resid <- resid_ltet200_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit only for cities with <= $200 per capita spending")
+
+grid.arrange(plot_2020_all_fit, plot_2020_ltet200_fit, plot_2020_all_resid, plot_2020_ltet200_resid, nrow = 2)
+
+```
+
+#### It's expected to have an asymptote to values where fractional values are measured, so its presence isn't surprising, but it's useful to see that the asymptote occurs around $200 per capita spending. This could potentially help guide overall city budgets to help maximize the accessibility and cultural importance of parks while balancing other civic priorities.
+
