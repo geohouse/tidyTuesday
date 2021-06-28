@@ -1,9 +1,12 @@
 ---
-title: "Tidy Tuesday June 22 2021"
+title: "Tidy Tuesday June 22 2021 - Week 26"
 author: "Geoffrey House"
-date: "6/24/2021"
-output: html_document
-toc: TRUE
+date: "6/28/2021"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+
 ---
 
 ### Lessons learned in working with this dataset:
@@ -11,7 +14,7 @@ toc: TRUE
 * How to use `switch` to convert each city name to the state where the city is located
 
 
-```{r download data}
+```{r download data, echo=FALSE, message=FALSE}
 
 # Get the Data
 
@@ -35,7 +38,7 @@ parks <- tuesdata$parks
 
 ```
 
-```{r data cleaning}
+```{r data cleaning, echo=FALSE, message=FALSE}
 library(tidyverse)
 library(pdftools)
 
@@ -126,8 +129,7 @@ raw_pdf_19[[1]] %>%
     delim = "|", 
     col_names = FALSE
   ) %>% 
-  set_names(all_col_names[str_detect(all_col_names, "total_pct", negate = TRUE)]) %>% 
-  glimpse()
+  set_names(all_col_names[str_detect(all_col_names, "total_pct", negate = TRUE)])
 
 park_2019_2 <- raw_pdf_19[[2]] %>% 
   str_split("\n") %>% 
@@ -140,8 +142,7 @@ park_2019_2 <- raw_pdf_19[[2]] %>%
     delim = "|", 
     col_names = FALSE
   ) %>% 
-  set_names(all_col_names[str_detect(all_col_names, "total_pct", negate = TRUE)]) %>% 
-  glimpse()
+  set_names(all_col_names[str_detect(all_col_names, "total_pct", negate = TRUE)])
 
 # Function to reproducibly read and clean data from past years
 read_and_clean <- function(year, page2 = TRUE){
@@ -219,11 +220,11 @@ all_2012 <- read_and_clean(2012, FALSE) %>%
 all_data <- bind_rows(list(all_2020, all_2019, all_2018, all_2017, all_2016, all_2015, all_2014, all_2013, all_2012)) %>% 
   select(year, everything())
 
-all_data %>% 
-  ggplot(aes(x = year, y = med_park_size_data, group = year)) +
-  geom_boxplot()
+#all_data %>% 
+#  ggplot(aes(x = year, y = med_park_size_data, group = year)) +
+#  geom_boxplot()
 
-all_data %>% glimpse()
+#all_data %>% glimpse()
 
 all_data %>% 
   write_csv("parks.csv")
@@ -233,25 +234,28 @@ all_data %>%
 
 ```
 
-```{r total_pct through time}
+```{r total_pct through time, echo=FALSE, message=FALSE}
 library(plotly)
 
 # Data for year 2017 don't appear because there's no column named 'total_pct' for 2017 data.
 
 total_pct_through_time <- all_data %>% ggplot(mapping = aes(x = year, y = total_pct, color = city)) + geom_point(show.legend = FALSE)
 
-ggplotly(total_pct_through_time)
+#ggplotly(total_pct_through_time)
 
 # Normalize the fractional point scores to the max score for each year, and convert the spend_per_resident_data column into numeric after dropping the '$'
 all_data_add_pct <- all_data %>% group_by(year) %>% mutate(emp_pct = total_points/ max(total_points), spend_per_resident_data = as.numeric(gsub(pattern = "[$]",replacement = "",x = spend_per_resident_data)))
 
 total_pct_through_time_2 <- all_data_add_pct %>% ggplot(mapping = aes(x = year, y = emp_pct, color = city)) + geom_point(show.legend = FALSE)
 
-ggplotly(total_pct_through_time_2)
+#ggplotly(total_pct_through_time_2)
 
 ```
 
-```{r score as function of spend}
+
+### How does the amount of spending on parks per capita relate to the cities' scores in different years?
+
+```{r score as function of spend, echo=FALSE, message=FALSE}
 
 
 score_spend <- all_data_add_pct %>% 
@@ -264,9 +268,11 @@ ggplotly(score_spend)
 ```
 
 
-### Looking at the 2020 data in particular, it looks like there is diminishing returns for increasing scores with spending above $200 per resident. Exploring that more here.
+### Diminishing returns for additional spending, especially in recent years
 
-```{r return on investment threshold}
+#### Looking at the 2020 data in particular, it looks like there is diminishing returns for increasing scores with spending above $200 per resident. Exploring that more here.
+
+```{r return on investment threshold, echo=FALSE, message=FALSE}
 
 # Try lm for 2020 below $200 spend compared to all cities. Looks like highly diminishing returns above $200 speding.
 
@@ -278,7 +284,7 @@ data_2020_plot
 ```
 
 #### If we look at linear models fit on the whole dataset and only fit for the cities with spending of at most $200 per resident, a linear model fits better when only cities with spending at most $200. This is the case when looking at just the adjusted R^2 values ... 
-```{r roi threshold lm models}
+```{r roi threshold lm models, echo=FALSE, message=FALSE}
 
 
 
@@ -298,7 +304,7 @@ knitr::kable(data.frame("adj_rSquare_allData" = fullSet_r2, "adj_rSquare_spendin
 
 #### This better model fit for the reduced model is also apparent when looking at the model residuals as a function of per capita spending. The residuals from the full model show a clear trend for cities with more spending, but are more randomly occurring in the model only considering cities with at most $200 per capita spending.
 
-```{r roi fit models plots}
+```{r roi fit models plots, echo=FALSE, message=FALSE}
 library(gridExtra)
 
 plot_2020_all_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct)) + geom_point() + theme_bw() + geom_abline(intercept = lm_fullSet$coefficients[1], slope = lm_fullSet$coefficients[2], color = "red") + xlab("Per capita annual spending on parks ($)") + ylab("Fractional score for each \ncities' parks (1 is best)") + ggtitle("Linear model fit to all 2020 data")
@@ -306,16 +312,16 @@ plot_2020_all_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_res
 # Add a marker vector for cities that have per captita spending of more than $200 annually and those that have less. The TRUE statement acts like if/else, to catch anything not set in the first test.
 data_subset_2020 <- data_subset_2020 %>% mutate(`per capita break` = case_when(spend_per_resident_data <= 200 ~ "<= $200", TRUE ~ "> $200"))
 
-plot_2020_ltet200_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct, color = `per capita break`)) + geom_point() + theme_bw() + geom_abline(intercept = lm_ltet200spend$coefficients[1], slope = lm_ltet200spend$coefficients[2], color = "red") + xlab("Per capita annual spending on parks ($)") + ylab("Fractional score for each \ncities' parks (1 is best)") + ggtitle("Linear model fit only for cities with <= $200 per capita spending") + scale_colour_manual(values=setNames(c("black", "light gray"), c("<= $200", "> $200")), guide = FALSE)
+plot_2020_ltet200_fit <- data_subset_2020 %>% ggplot(mapping = aes(x = spend_per_resident_data, y = emp_pct, color = `per capita break`)) + geom_point() + theme_bw() + geom_abline(intercept = lm_ltet200spend$coefficients[1], slope = lm_ltet200spend$coefficients[2], color = "red") + xlab("Per capita annual spending on parks ($)") + ylab("Fractional score for each \ncities' parks (1 is best)") + ggtitle("Linear model fit only for cities\n with <= $200 per capita spending") + scale_colour_manual(values=setNames(c("black", "light gray"), c("<= $200", "> $200")), guide = FALSE)
 
 # Set up data frames with the residual values for easy plotting
 resid_all_2020 <- data.frame("spend_per_resident" = data_subset_2020$spend_per_resident_data, "residuals" = lm_fullSet$residuals)
 
 resid_ltet200_2020 <- data.frame("spend_per_resident" = data_subset_2020_ltet200spend$spend_per_resident_data, "residuals" = lm_ltet200spend$residuals)
 
-plot_2020_all_resid <- resid_all_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit to all 2020 data")
+plot_2020_all_resid <- resid_all_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit\n to all 2020 data")
 
-plot_2020_ltet200_resid <- resid_ltet200_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit only for cities with <= $200 per capita spending")
+plot_2020_ltet200_resid <- resid_ltet200_2020 %>% ggplot(mapping = aes(x = spend_per_resident, y = residuals)) + geom_point(pch = 21, fill = "blue") + theme_bw() + xlab("Per capita annual spending on parks ($)") + ylab("Residuals") + ggtitle("Residuals of linear model fit\n only for cities with <= $200 \nper capita spending")
 
 grid.arrange(plot_2020_all_fit, plot_2020_ltet200_fit, plot_2020_all_resid, plot_2020_ltet200_resid, nrow = 2)
 
@@ -323,11 +329,13 @@ grid.arrange(plot_2020_all_fit, plot_2020_ltet200_fit, plot_2020_all_resid, plot
 
 #### Conclusion: It's expected to have an asymptote to values where fractional response values are measured, so its presence isn't surprising, but it's useful to see that the asymptote occurs around $200 per capita spending. This could potentially help guide overall city budgets to help maximize the accessibility and cultural importance of parks while balancing other civic priorities.
 
-#### Considering all park features together, are there characteristics of parks in some cities or some states that make them unique compared to parks in other cities or states? I'll use principal coordinates analysis (PCoA) to visualize differences in the different park characteristics among all cities and states, and then look at which park features are prominent in the loadings of the PCoA axes to see what park features drive these differences.
+### Are there consistent differences in park features and amenities by state? 
+#### Group the cities by state and then see if there are consistent differences in the characteristics of parks for given states/regions of the country (i.e. are splash pads more common in areas with longer summers and warmer weather overall?)
 
-```{r add state to city data}
+```{r add state to city data, echo=FALSE, message=FALSE}
 
 library(purrr)
+library(vegan)
 
 # There are some inconsistent city entries across years, so need to standardize them here
 
@@ -442,9 +450,120 @@ mapCityToState <- function(cityToLookup){
 #testCities <- c("St. Paul", "Arlington", "Austin", "St. Paul")
 
 # Use purrr map to apply the mapCityToState function to each element in t
-all_data_add_pct$state <- purrr::map(.x = all_data_add_pct$city, .f = mapCityToState)
+all_data_add_pct$state <- purrr::map_chr(.x = all_data_add_pct$city, .f = mapCityToState)
+
+all_data_subset_for_pcoa <- all_data_add_pct %>% select(city,
+state,
+year,
+rank,
+med_park_size_data,
+park_pct_city_data,
+pct_near_park_data,
+spend_per_resident_data,
+basketball_data,
+dogpark_data,
+playground_data,
+rec_sr_data,
+restroom_data,
+splashground_data,
+park_benches)
+
+all_data_subset_for_pcoa$city_state_year <- paste(all_data_subset_for_pcoa$city, all_data_subset_for_pcoa$state, all_data_subset_for_pcoa$year, sep = "_")
 
 
+# The data from 2018, 2019, and 2020 contain information for all variables except park benches. 
+# Earlier data are missing values for more variables.
+data_subset_for_pcoa_2018_2019_2020 <- all_data_subset_for_pcoa %>% filter(year >= 2018) %>% select(-park_benches, -rank)
+
+data_subset_for_pcoa_2018_2019_2020 <- data_subset_for_pcoa_2018_2019_2020 %>% mutate(park_pct_city_data = as.numeric(x = gsub(pattern = "[%]", replacement = "", x = park_pct_city_data)), pct_near_park_data = as.numeric(x = gsub(pattern = "[%]", replacement = "", x = pct_near_park_data)))
+
+# Plotting not working well in the for loop for some reason
+# for(columnName in names(data_subset_for_pcoa_2018_2019_2020)){
+#   print(columnName)
+#   if(columnName %in% c("city", "year", "city_state_year")){
+#     next
+#   } else{
+#     curr_plot <- all_data_subset_for_pcoa %>% ggplot(mapping = aes(x = state, y = columnName, color = state)) + geom_violin() + theme_bw()
+#     print(curr_plot)
+#   }
+# }
+
+
+data_for_pcoa <- as.data.frame(data_subset_for_pcoa_2018_2019_2020[,3:12])
+rownames(data_for_pcoa) <- data_subset_for_pcoa_2018_2019_2020$city_state_year
+
+pcoa_output <- vegan::capscale(data_for_pcoa ~ 1, dist = "bray", binary = FALSE)
+
+# plot(pcoa_output, scaling = "species")
+# 
+# points(pcoa_output)
 
 ```
+
+##### In most states, different cities have strongly different per-capita expenditures on parks 
+
+```{r spend per resident, echo=FALSE, message=FALSE}
+curr_plot_spending <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = spend_per_resident_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_spending
+
+```
+
+##### The number of playgrounds per 10,000 residents varies widely across cities in different states, but is typically around 3.
+
+```{r number of playgrounds, echo=FALSE, message=FALSE}
+curr_plot_playground <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = playground_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_playground
+
+```
+
+##### There are far fewer dog parks compared to playgrounds (~1 dog park per 100,000 residents), but dogs have many more to choose from in Idaho and Oregon (~5 dog parks per 100,000 residents)
+
+```{r number of dog parks, echo=FALSE, message=FALSE}
+curr_plot_dogpark <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = dogpark_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_dogpark
+
+```
+
+##### Splash pads appear more common in the Mid-Atlantic and New England (PA, NY, MA)
+
+```{r number of splashpads, echo=FALSE, message=FALSE}
+curr_plot_splash <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = splashground_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_splash
+
+```
+
+##### There are around 2 restrooms per 10,000 residents in most states, but there's a fair amount of variability. Parks in Minnesota generally have the most restrooms.
+
+```{r number of restrooms, echo=FALSE, message=FALSE}
+curr_plot_restroom <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = restroom_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_restroom
+
+```
+
+##### There are generally about 3 basketball hoops per 10,000 residents, but with large amounts of variation among cities in Virginia and California.
+
+```{r number of basketball hoops, echo=FALSE, message=FALSE}
+
+curr_plot_basketball <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = basketball_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_basketball
+
+```
+
+##### The number of recreation and senior centers per 20,000 residents varies a lot between states, with 1 rec center being the most common. 
+
+```{r number of rec centers, echo=FALSE, message=FALSE}
+curr_plot_reccenter <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = rec_sr_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_reccenter
+```
+
+##### The percentage of residents living within a 10 minute walk to a park varies widely, between 35% and 100%. 
+
+```{r percentage of people living near a park, echo=FALSE, message=FALSE}
+curr_plot_pct_near_park <- data_subset_for_pcoa_2018_2019_2020 %>% ggplot(mapping = aes(x = state, y = pct_near_park_data, color = state)) + geom_violin() + theme_bw() + coord_flip()
+curr_plot_pct_near_park
+
+```
+
+
+
 
