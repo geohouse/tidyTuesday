@@ -13,6 +13,10 @@ output: html_document
 
 library(dplyr)
 library(ggplot2)
+library(tmaptools)
+library(here)
+library(tidyr)
+library(ggmap)
 
 rm(list = ls())
 
@@ -22,10 +26,14 @@ rm(list = ls())
 
 # Either ISO-8601 date or year/week works!
 
-tuesdata <- tidytuesdayR::tt_load('2021-06-29')
-#tuesdata <- tidytuesdayR::tt_load(2021, week = 26)
+#tuesdata <- tidytuesdayR::tt_load('2021-06-29')
+# #tuesdata <- tidytuesdayR::tt_load(2021, week = 26)
+# 
+#animalRescues <- tuesdata$animal_rescues
+# 
+# saveRDS(object = animalRescues, file = "animalRescuesData_062921.rds")
 
-animalRescues <- tuesdata$animal_rescues
+animalRescues <- readRDS(file = "animalRescuesData_062921.rds")
 
 ```
 
@@ -45,3 +53,128 @@ animalRescues %>% ggplot(mapping = aes(x = animal_group_parent)) + geom_bar() + 
     ylab("Number of rescues") + xlab("Type of animal rescued") + coord_flip()
 
 ```
+
+
+```{r assign lat lon to boroughs, echo = FALSE, message = FALSE}
+
+# Fully functional, but only needed once, then saved as RDS. Reads the RDS file at the end of the code block.
+
+# For some rescues, there are specific lat/long values, but for others there aren't. Assign those missing
+# lat/lon values to the be lat/lon of the borough in general
+
+# First need to make all of the borough names lower case for consistency
+# animalRescues$borough <- tolower(animalRescues$borough)
+# 
+# assignLatLon <- function(boroughQuery){
+#     # Geocoding of lat/lon using openStreetMap
+#     OSM_returned <- tmaptools::geocode_OSM(boroughQuery)
+#     if(!is.null(OSM_returned)){
+#         OSM_lat <- OSM_returned$coords[2]
+#         OSM_lon <- OSM_returned$coords[1]
+# 
+#         dataReturn <- data.frame("lat" = OSM_lat, "lon" = OSM_lon)
+#     } else{
+#         print(paste0("Lookup failed for query: ", boroughQuery))
+#         dataReturn <- data.frame("lat" = NA, "lon" = NA)
+#     }
+#     return(dataReturn)
+# }
+# 
+# uniqueBoroughs <- data.frame("boroughName" = unique(animalRescues$borough),
+#                              "latitude" = vector(mode = "numeric", length = length(unique(animalRescues$borough))),
+#                              "longitude" = vector(mode = "numeric", length = length(unique(animalRescues$borough))), stringsAsFactors = FALSE)
+# 
+# # Geocode the city names to convert into lat/lon
+# for(rowNum in seq(1, nrow(uniqueBoroughs))){
+#     #print(rowNum)
+# 
+#     currBorough <- uniqueBoroughs$boroughName[rowNum]
+#     print(currBorough)
+#     returnedGeocode <- assignLatLon(currBorough)
+#     uniqueBoroughs$latitude[rowNum] <- returnedGeocode$lat
+#     uniqueBoroughs$longitude[rowNum] <- returnedGeocode$lon
+# 
+#     # Not supposed to exceed 1 query per second for open streets mapping
+#     Sys.sleep(2)
+# 
+# }
+# 
+# # Need to clean up the entries for sutton, camden, bexley, brent, and brentwood because the lookups didn't work right. fix by adding a temporary 'uk' addition to the name
+# 
+# fixIndex <- which(uniqueBoroughs$boroughName %in% c("sutton", "camden", "bexley", "brent", "brentwood"))
+# 
+# for(rowNum2 in fixIndex){
+#     fixedName <- paste0(uniqueBoroughs$boroughName[rowNum2], ", uk")
+#     fixedGeocode <- assignLatLon(fixedName)
+#     uniqueBoroughs$latitude[rowNum2] <- fixedGeocode$lat
+#     uniqueBoroughs$longitude[rowNum2] <- fixedGeocode$lon
+# }
+# 
+# # now remove the NA row
+# uniqueBoroughs <- uniqueBoroughs[which(!is.na(uniqueBoroughs$boroughName)),]
+# 
+# # Add the borough lat/lon for any rescue row missing a lat/lon
+# for(rowNum3 in seq(1,nrow(animalRescues))){
+#     currLat <- animalRescues$latitude[rowNum3]
+#     currLon <- animalRescues$longitude[rowNum3]
+#     #print(currLat)
+#     #print(currLon)
+#     if(currLat != "NULL" && currLat != "0" && currLon != "NULL" && currLon != "0"){
+#         next
+#      
+#     } else{
+#         #print("replace")
+#         currBorough <- animalRescues$borough[rowNum3]
+#         boroughLat <- uniqueBoroughs$latitude[which(uniqueBoroughs$boroughName == currBorough)]
+#         boroughLon <- uniqueBoroughs$longitude[which(uniqueBoroughs$boroughName == currBorough)]
+#         animalRescues$latitude[rowNum3] <- boroughLat
+#         animalRescues$longitude[rowNum3] <- boroughLon
+#     }
+#     
+# }
+# 
+# # Convert the lat/lon columns to numeric
+# animalRescues$latitude <- as.numeric(animalRescues$latitude)
+# animalRescues$longitude <- as.numeric(animalRescues$longitude)
+# 
+# animalRescues_locsAdded <- animalRescues
+# 
+# saveRDS(object = animalRescues_locsAdded, file = "animalRescuesData_locsAdded_062921.rds")
+
+animalRescues_locsAdded <- readRDS(file = "animalRescuesData_locsAdded_062921.rds")
+```
+
+```{r prep maps for rescues, echo = FALSE, message = FALSE}
+
+# Functional, just commented out except the last line reading the base maps from the RDS
+
+# hist(animalRescues$latitude)
+# 
+# # Add room around bounding box for map coordinates
+# 
+# minLat <- 51
+# maxLat <- 52
+# minLon <- -1
+# maxLon <- 1
+# 
+# # minLat <- round(x = min(animalRescues_locsAdded$latitude, na.rm = T)) - 1
+# # maxLat <- round(max(animalRescues_locsAdded$latitude, na.rm = T)) + 1
+# # minLon <- round(min(animalRescues_locsAdded$longitude, na.rm = T)) - 1
+# # maxLon <- round(max(animalRescues_locsAdded$longitude, na.rm = T)) + 1
+# 
+# boundBox <- c(minLon, minLat, maxLon, maxLat)
+# 
+# # # Toner with no labels, but does have state boundaries
+# london_map_toner_background <- ggmap::get_stamenmap(bbox = boundBox, crop = T, zoom = 10, color = "color", maptype = "toner-background")
+# # Watercolor with no state boundaries
+# london_map_watercolor <- ggmap::get_stamenmap(bbox = boundBox, crop = T, zoom = 10, color = "color", maptype = "watercolor")
+# 
+# # 
+# saveRDS(object = london_map_toner_background, file = "London_backgroundMap_stamenTonerBackground.Rds")
+# saveRDS(object = london_map_watercolor, file = "London_backgroundMap_stamenWatercolor.Rds")
+
+london_map_toner_background <- readRDS(file = "London_backgroundMap_stamenTonerBackground.Rds")
+london_map_watercolor <- readRDS(file = "London_backgroundMap_stamenWatercolor.Rds")
+
+```
+
