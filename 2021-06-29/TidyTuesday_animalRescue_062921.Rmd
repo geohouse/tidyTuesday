@@ -7,6 +7,9 @@ output: html_document
 
 ### Lessons learned in working with this dataset:
 * In `ggplot`, the coordinate labels are also flipped after using `coord_flip()` (i.e. `xlab` specifies the y-axis label, and vice-versa)
+* Looking up latitude/longitude entries using Geocoding from `tmaptools`
+* Downloading base maps (and picking the right bounding box/zoom level) using ggmap
+* Plotting locations on a map
 
 ```{r get data, echo = FALSE, message = FALSE}
 # Get the Data
@@ -33,7 +36,9 @@ rm(list = ls())
 # 
 # saveRDS(object = animalRescues, file = "animalRescuesData_062921.rds")
 
-animalRescues <- readRDS(file = "animalRescuesData_062921.rds")
+animalRescues_orig <- readRDS(file = "animalRescuesData_062921.rds")
+
+animalRescues <- animalRescues_orig
 
 ```
 
@@ -178,3 +183,54 @@ london_map_watercolor <- readRDS(file = "London_backgroundMap_stamenWatercolor.R
 
 ```
 
+#### Cats need rescuing all over the place!
+
+```{r plot map cat rescue, echo = FALSE, message = FALSE}
+
+# Get only the cat rescue entries
+catRescues <- animalRescues_locsAdded %>% filter(animal_group_parent == "Cat") %>% group_by(latitude, longitude) %>% summarise(`Number of rescues` = n())
+
+# 35% transparency
+ggmap(london_map_toner_background) + geom_point(data = catRescues, mapping = aes(x = longitude, y = latitude, size = `Number of rescues`), color = "#c51b7d59") + xlab("longitude") + ylab("latitude") + ggtitle("Cat rescues in greater London")
+
+```
+
+#### Most bird rescues seem centered near the center of London (darker purple)
+
+```{r plot map bird rescue, echo = FALSE, message = FALSE}
+
+# Get only the bird rescue entries
+birdRescues <- animalRescues_locsAdded %>% filter(animal_group_parent == "Bird") %>% group_by(latitude, longitude) %>% summarise(`Number of rescues` = n())
+
+# 35% transparency
+ggmap(london_map_toner_background) + geom_point(data = birdRescues, mapping = aes(x = longitude, y = latitude, size = `Number of rescues`), color = "#762a8359") + xlab("longitude") + ylab("latitude") + ggtitle("Bird rescues in greater London")
+
+```
+
+#### There are far fewer dog rescues, but they're more geographically widespread like the cat rescues
+
+```{r plot map dog rescue, echo = FALSE, message = FALSE}
+
+# Get only the dog rescue entries
+dogRescues <- animalRescues_locsAdded %>% filter(animal_group_parent == "Dog") %>% group_by(latitude, longitude) %>% summarise(`Number of rescues` = n())
+
+# 35% transparency
+ggmap(london_map_toner_background) + geom_point(data = dogRescues, mapping = aes(x = longitude, y = latitude, size = `Number of rescues`), color = "#4d922159") + xlab("longitude") + ylab("latitude") + ggtitle("Dog rescues in greater London")
+
+```
+
+#### There seem to be a lot of foxes living (and rescued!) even in the center of London. (The larger dots represent rescues where the location wasn't exactly known, and was guessed)
+
+```{r plot map fox rescue, echo = FALSE, message = FALSE}
+
+# Get only the fox rescue entries
+foxRescues <- animalRescues_locsAdded %>% filter(animal_group_parent == "Fox") %>% group_by(latitude, longitude) %>% summarise(`Number of rescues` = n())
+
+# 35% transparency
+ggmap(london_map_toner_background) + geom_point(data = foxRescues, mapping = aes(x = longitude, y = latitude, size = `Number of rescues`), color = "#b3580659") + xlab("longitude") + ylab("latitude") + ggtitle("Fox rescues in greater London")
+
+percNullLocs_fox <- animalRescues_orig %>% filter(animal_group_parent == "Fox") %>% mutate(totalNum = n()) %>% filter(latitude == "NULL") %>% mutate(numNull = n()) %>% select(totalNum, numNull) %>% unique() %>% summarise(percNullLocs_fox = (numNull/totalNum) * 100)
+
+percNullLocs_cat <- animalRescues_orig %>% filter(animal_group_parent == "Cat") %>% mutate(totalNum = n()) %>% filter(latitude == "NULL") %>% mutate(numNull = n()) %>% select(totalNum, numNull) %>% unique() %>% summarise(percNullLocs_cat = (numNull/totalNum) * 100)
+
+```
