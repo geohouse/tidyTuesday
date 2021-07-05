@@ -1,0 +1,47 @@
+---
+title: "Tidy Tuesday 06-29-21"
+author: "Geoffrey House"
+date: "7/3/2021"
+output: html_document
+---
+
+### Lessons learned in working with this dataset:
+* In `ggplot`, the coordinate labels are also flipped after using `coord_flip()` (i.e. `xlab` specifies the y-axis label, and vice-versa)
+
+```{r get data, echo = FALSE, message = FALSE}
+# Get the Data
+
+library(dplyr)
+library(ggplot2)
+
+rm(list = ls())
+
+# Read in with tidytuesdayR package 
+# Install from CRAN via: install.packages("tidytuesdayR")
+# This loads the readme and all the datasets for the week of interest
+
+# Either ISO-8601 date or year/week works!
+
+tuesdata <- tidytuesdayR::tt_load('2021-06-29')
+#tuesdata <- tidytuesdayR::tt_load(2021, week = 26)
+
+animalRescues <- tuesdata$animal_rescues
+
+```
+
+```{r clean data, echo = FALSE, message = FALSE}
+
+# Make the animal labels consistent
+animalRescues$animal_group_parent[which(animalRescues$animal_group_parent == "cat")] <- "Cat"
+
+
+```
+
+#### By far, most of the rescues are for cats, with birds as the second most rescued, and dogs the third.
+
+```{r animal type histogram, echo = FALSE, message = FALSE}
+
+animalRescues %>% ggplot(mapping = aes(x = animal_group_parent)) + geom_bar() + theme_bw() + 
+    ylab("Number of rescues") + xlab("Type of animal rescued") + coord_flip()
+
+```
