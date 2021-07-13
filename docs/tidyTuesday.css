@@ -1,6 +1,19 @@
 .entry{
     background-color: lightgray;
     width:60%;
-    height:6em;
+    height:60%;
     font-family:Tahoma, sans-serif;
+}
+
+.image.fit {
+    /* Makes the images centered above the text */
+    display: float;
+    margin: 1em 1em 1em 1em;
+    /* Increases image width */
+    width: 30%;
+}
+
+.heading{
+    vertical-align: top;
+    font-size:1.2em;
 }
