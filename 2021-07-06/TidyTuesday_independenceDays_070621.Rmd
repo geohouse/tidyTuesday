@@ -14,7 +14,6 @@ output:
 ```{r get data, echo = FALSE, message = FALSE}
 # Get the Data
 
-
 rm(list = ls())
 
 # Get the Data
@@ -25,20 +24,19 @@ rm(list = ls())
 
 # Either ISO-8601 date or year/week works!
 
-tuesdata <- tidytuesdayR::tt_load('2021-07-06')
+#tuesdata <- tidytuesdayR::tt_load('2021-07-06')
 #tuesdata <- tidytuesdayR::tt_load(2021, week = 28)
 
-holidays <- tuesdata$holidays
+#holidays <- tuesdata$holidays
 
 # Or read in the data manually
 
 #holidays <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-06/holidays.csv')
 
-saveRDS(object = holidays, file = "holidaysData_070621.rds")
+#saveRDS(object = holidays, file = "holidaysData_070621.rds")
 
-#holidays <- readRDS(file = "animalRescuesData_062921.rds")
+holidays <- readRDS(file = "holidaysData_070621.rds")
 
-animalRescues <- animalRescues_orig
 
 ```
 
@@ -109,12 +107,14 @@ ind_clean <-
   ) %>%
   relocate(date_parsed:month, .after = country)
 
-ind_clean %>% 
-  glimpse()
+#ind_clean %>% 
+#  glimpse()
 
 #ind_clean %>% 
 #  write_csv("2021/2021-07-06/holidays.csv")
 ```
+
+#### Most independence days are either on the 1st or the 15th of each month, and there are many more in the second half of the year (July - December) than the first half (January - June)
 
 ```{r make plot, echo = FALSE, message= FALSE}
 
