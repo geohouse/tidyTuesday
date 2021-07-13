@@ -1,0 +1,151 @@
+---
+title: "Tidy Tuesday 07-06-21"
+author: "Geoffrey House"
+date: "7/12/2021"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+---
+
+### Lessons learned in working with this dataset:
+* Learned about the `polite` and `janitor` R packages
+
+```{r get data, echo = FALSE, message = FALSE}
+# Get the Data
+
+
+rm(list = ls())
+
+# Get the Data
+
+# Read in with tidytuesdayR package 
+# Install from CRAN via: install.packages("tidytuesdayR")
+# This loads the readme and all the datasets for the week of interest
+
+# Either ISO-8601 date or year/week works!
+
+tuesdata <- tidytuesdayR::tt_load('2021-07-06')
+#tuesdata <- tidytuesdayR::tt_load(2021, week = 28)
+
+holidays <- tuesdata$holidays
+
+# Or read in the data manually
+
+#holidays <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-06/holidays.csv')
+
+saveRDS(object = holidays, file = "holidaysData_070621.rds")
+
+#holidays <- readRDS(file = "animalRescuesData_062921.rds")
+
+animalRescues <- animalRescues_orig
+
+```
+
+```{r access raw data, echo = FALSE, message = FALSE}
+
+# Not needed, but is the code used to generate the dataset.
+
+# Independence Days Around the World --------------------------------------
+
+# Libraries ---------------------------------------------------------------
+library(janitor)
+library(tidyverse)
+library(rvest)
+library(httr)
+library(polite)
+library(lubridate)
+
+
+# Scrape data -------------------------------------------------------------
+
+url <- "https://en.wikipedia.org/wiki/List_of_national_independence_days"
+url_bow <- polite::bow(url)
+
+ind_html <-
+  polite::scrape(url_bow) %>%
+  rvest::html_nodes("table.wikitable") %>%
+  rvest::html_table(fill = TRUE)
+
+ind_tab <-
+  ind_html[[1]][1:6] %>%
+  as_tibble() %>%
+  clean_names()
+
+raw_html <- polite::scrape(url_bow) 
+
+raw_html %>%
+  # rvest::html_nodes("table.wikitable") %>%
+  rvest::html_nodes("span.flagicon") %>% 
+  length()
+  #rvest::html_table(fill = TRUE)
+
+# Clean data --------------------------------------------------------------
+
+ind_clean <-
+  ind_tab %>%
+  # Cleaning up some dates
+  mutate(
+    date_of_holiday = case_when(
+      country == "Croatia" ~ "May 30",
+      country == "Mexico" ~ "September 16",
+      country == "Mongolia" ~ "December 29",
+      country == "Paraguay" ~ "May 14",
+      country == "Israel" ~ "May 14", # Independence Day exists within a range, but this was the original date.
+      country == "Slovenia" ~ "June 25", # Slovenia has two dates; this one is "Statehood Day".
+      TRUE ~ date_of_holiday
+    ),
+    year = str_sub(year_of_event, start = 1, end = 4),
+    date_mdy = case_when(
+      date_of_holiday != "" ~ paste0(date_of_holiday, ", ", year),
+      TRUE ~ ""
+    ),
+    date_parsed = mdy(date_mdy),
+    weekday = weekdays(date_parsed),
+    day = day(date_parsed),
+    month = month(date_parsed, label = TRUE),
+    year_of_event = as.integer(year_of_event),
+    year = as.integer(year)
+  ) %>%
+  relocate(date_parsed:month, .after = country)
+
+ind_clean %>% 
+  glimpse()
+
+#ind_clean %>% 
+#  write_csv("2021/2021-07-06/holidays.csv")
+```
+
+```{r make plot, echo = FALSE, message= FALSE}
+
+# Set up the months as an ordered factor
+# First, remove the NA entries
+holidays <- holidays %>% filter(!is.na(month))
+
+holidays$Month <- factor(holidays$month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+                                                           "Aug", "Sep", "Oct", "Nov", "Dec"))
+
+# Define date bands; These don't end up being useful in the plotting, because there can be multiple holidays
+# on the same date that have different initial dates, so the number of countries having holidays on each
+# date is used instead (below)
+holidays <- holidays %>% mutate(dateRange = case_when(year_of_event < 1500 ~ "1291-1500",
+                                                      year_of_event > 1500 & year_of_event < 1550 ~ "1500-1550",
+                                                      year_of_event > 1550 & year_of_event < 1600 ~ "1550-1600",
+                                                      year_of_event > 1600 & year_of_event < 1650 ~ "1600-1650",
+                                                      year_of_event > 1750 & year_of_event < 1800 ~ "1750-1800",
+                                                      year_of_event > 1800 & year_of_event < 1850 ~ "1800-1850",
+                                                      year_of_event > 1850 & year_of_event < 1900 ~ "1850-1900",
+                                                      year_of_event > 1900 & year_of_event < 1950 ~ "1900-1950",
+                                                      year_of_event > 1950 & year_of_event < 2000 ~ "1950-2000",
+                                                      year_of_event > 2000 & year_of_event < 2022 ~ "2000-present"))
+
+# Now set up the size of the points to plot. Start by making record of unique month/day, then
+# count the number of times that each appears across the full dataset to make the point size variable.
+holidays$pasteMonthDay <- paste0(holidays$month, holidays$day)
+
+holidays <- holidays %>% group_by(pasteMonthDay) %>% mutate(`Num holidays per date` = n())
+
+holidays %>% ggplot(mapping = aes(x = day, y = Month, size = `Num holidays per date`)) + geom_point(color = "firebrick") + scale_y_discrete(limits=rev) + theme_bw()
+
+
+```
