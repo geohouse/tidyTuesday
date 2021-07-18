@@ -1,0 +1,48 @@
+---
+title: "Tidy Tuesday 07-13-21"
+author: "Geoffrey House"
+date: "7/18/2021"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+---
+
+### Lessons learned in working with this dataset:
+* 
+
+```{r get data, echo = FALSE, message = FALSE}
+# Get the Data
+
+rm(list = ls())
+
+# Read in with tidytuesdayR package 
+# Install from CRAN via: install.packages("tidytuesdayR")
+# This loads the readme and all the datasets for the week of interest
+
+# Either ISO-8601 date or year/week works!
+
+#tuesdata <- tidytuesdayR::tt_load('2021-07-13')
+#tuesdata <- tidytuesdayR::tt_load(2021, week = 29)
+
+#scoobydoo <- tuesdata$scoobydoo
+
+# Or read in the data manually
+
+#scoobydoo <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-13/scoobydoo.csv')
+
+#saveRDS(object = scoobydoo, file = "TidyTuesday_ScoobyDoo.rds")
+
+scoobydoo <- readRDS(file = "TidyTuesday_ScoobyDoo.rds")
+
+```
+
+```{r convert true false to logical, echo = F, message = F}
+
+namesToConvert <- names(scoobydoo)[18:32]
+
+convertedData <- sapply(X = namesToConvert, FUN = function(name){return(as.logical(scoobydoo[[name]]))})
+
+colSums(convertedData, na.rm = T)
+
+```
