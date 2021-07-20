@@ -9,7 +9,7 @@ output:
 ---
 
 ### Lessons learned in working with this dataset:
-* 
+* How to make an easy Cleveland dot plot in ggplot using data groupings
 
 ```{r get data, echo = FALSE, message = FALSE}
 # Get the Data
@@ -37,12 +37,64 @@ scoobydoo <- readRDS(file = "TidyTuesday_ScoobyDoo.rds")
 
 ```
 
+### Who is captured the most, and who has caught the villain the most?
+
+* All characters have been captured between 70-90 times
+* Daphnie and Velma have caught the villain far less than either Scooby (~4x less) or Fred (~x3 less)
+
 ```{r convert true false to logical, echo = F, message = F}
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
 
 namesToConvert <- names(scoobydoo)[18:32]
 
 convertedData <- sapply(X = namesToConvert, FUN = function(name){return(as.logical(scoobydoo[[name]]))})
 
-colSums(convertedData, na.rm = T)
+# Take the column sums to give the number of times each character was captured or caught the culprit
+numberHolder <- data.frame(colSums(convertedData, na.rm = T))
+
+# Need to transform to long format in order to plot. Split the row names on '_' to 
+# get 1) whether the character was captured or caught the culprit, and 2) who the character is
+actionHolder <- matrix(unlist(strsplit(rownames(numberHolder), split = "_")), ncol = 2, byrow = T)
+
+numberHolder$action <- actionHolder[,1]
+numberHolder$name <- actionHolder[,2]
+
+names(numberHolder) <- c("numTimes", "action", "name")
+
+# Remove the 'unmask' entries
+holderForPlot <- numberHolder %>% filter(action != "unmask")
+
+ggplot(data = holderForPlot, mapping = aes(x = numTimes, y = name)) + 
+    geom_line(aes(group = name)) + 
+    geom_point(aes(color = action), size =4) + 
+    theme_bw()
+
+```
+
+### How have different exclamations changed over time?
+
+* *'Just about wrapped up'*, *'Groovy'*, and *'Jeepers!'* were all barely used from 1980-2000, but are back now
+* *'Zoinks!'* has always been the most popular, and *'Scooby Doo, where are you?'* isn't actually said all that often.
+
+```{r correlations between words used and imdb ratings, echo = F, message = F, warning= F}
+
+colsToConvertNumeric <- names(scoobydoo)[58:65]
+
+convertedDataSayings <- as.data.frame(sapply(X = colsToConvertNumeric, FUN = function(entry){return(as.numeric(scoobydoo[[entry]]))}))
+
+convertedDataSayings$date <- scoobydoo$date_aired
+
+convertedDataSayings$year <- lubridate::year(convertedDataSayings$date)
+
+convertedDataSayings_long <- tidyr::pivot_longer(data = convertedDataSayings, cols = c(-year, -date), names_to = "saying", values_to = "Number of times said")
+
+# Convert 0 entries to NA
+convertedDataSayings_long$`Number of times said`[which(convertedDataSayings_long$`Number of times said` == 0)] <- NA
+
+ggplot(data = convertedDataSayings_long, mapping = aes(x = date, y = saying, size = `Number of times said`)) + geom_point(aes(color = saying)) + 
+    theme_bw() + xlab("Year") + ylab("Saying") + scale_color_brewer(palette = "Set2", guide = "none")
 
 ```
