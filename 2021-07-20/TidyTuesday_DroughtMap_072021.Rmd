@@ -1,0 +1,136 @@
+---
+title: "Tidy Tuesday 07-20-21"
+author: "Geoffrey House"
+date: "7/24/2021"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+---
+
+### Lessons learned in working with this dataset:
+* Using `lead` (and `lag` in `dplyr`) to calculate values in the current row using values either in subsequent (or previous) rows. Works in combination with `mutate`, `case_when` and `%in%`
+
+#### The cumulative data correction is inconsistent among state/time entries, so using the categorical data instead (doesn't need the cumulative data correction)
+
+```{r clean raw data, echo = FALSE, message = FALSE}
+# Get the Data
+
+rm(list = ls())
+
+library(tidyverse)
+library(janitor)
+
+read_and_prep <- function(file, type){
+  read_csv(paste0("./", file)) %>% 
+    pivot_longer(cols = None:D4, names_to = "drought_lvl", values_to = type) %>% 
+    janitor::clean_names()
+  
+}
+
+state_area_pct <- read_and_prep("drought_percArea_2001-2021.csv", "area_pct")
+
+# This fails
+#state_area <- read_and_prep("drought_totArea_2001-2021.csv", "area_total")
+
+state_pct_pop <- read_and_prep("drought_percPop_2001-2021.csv", "pop_pct")
+
+# This fails
+#state_pop <- read_and_prep("drought_totPop_2001-2021.csv", "pop_total")
+
+all_df <- state_area_pct %>% 
+  #left_join(state_area) %>% 
+  left_join(state_pct_pop) %>% 
+  #left_join(state_pop) %>% 
+  rename(state_abb = state_abbreviation, stat_fmt = statistic_format_id)
+
+all_df %>% 
+  write_csv("./tabulated_categoricalDroughtData_2001_2021.csv")
+
+
+# Get the Data
+
+# Read in with tidytuesdayR package 
+# Install from CRAN via: install.packages("tidytuesdayR")
+# This loads the readme and all the datasets for the week of interest
+
+# Either ISO-8601 date or year/week works!
+
+#tuesdata <- tidytuesdayR::tt_load('2021-07-20')
+#tuesdata <- tidytuesdayR::tt_load(2021, week = 30)
+
+#drought <- tuesdata$drought
+
+# Or read in the data manually
+
+#drought <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-07-20/drought.csv')
+
+#saveRDS(object = drought, file = "TidyTuesday_DroughtMapData.rds")
+
+#drought <- readRDS(file = "TidyTuesday_DroughtMapData.rds")
+
+```
+
+```{r read in data, echo = F, message= F}
+
+droughtData <- read_csv("./tabulated_categoricalDroughtData_2001_2021.csv")
+
+```
+
+
+#### The values for population and area affected by drought are cumulative across the 5 drought levels (D0-D4), i.e. values in D0 are totals of sum(D0:D4). To revert these to actual values, group by state and date, then subtract the next higher drought level data from each using the `lead` verb in `dplyr`
+
+#### This wasn't working well (the cumulative calculation seemed inconsistent), so manually downloading the categorical (non-cumulative) data instead
+
+```{r remove cumulative totals, echo = FALSE, message = FALSE}
+
+# drought_actual <- drought %>% group_by(state_abb, map_date) %>%
+#     mutate(actAreaPct = case_when(drought_lvl %in% c("None", "D4") ~ area_pct,
+#                                   drought_lvl %in% c("D0","D1", "D2", "D3") ~ area_pct - lead(x = area_pct, n = 1)),
+#            actAreaTot = case_when(drought_lvl %in% c("None", "D4") ~ area_total,
+#                                   drought_lvl %in% c("D0","D1", "D2", "D3") ~ area_total - lead(x = area_total, n = 1)),
+#            actPopPct = case_when(drought_lvl %in% c("None", "D4") ~ pop_pct,
+#                                   drought_lvl %in% c("D0","D1", "D2", "D3") ~ pop_pct - lead(x = pop_pct, n = 1)),
+#            actPopTot = case_when(drought_lvl %in% c("None", "D4") ~ pop_total,
+#                                   drought_lvl %in% c("D0","D1", "D2", "D3") ~ pop_total - lead(x = pop_total, n = 1)))
+# 
+
+
+```
+
+### Who is captured the most, and who has caught the villain the most?
+
+* All characters have been captured between 70-90 times
+* Daphnie and Velma have caught the villain far less than either Scooby (~4x less) or Fred (~x3 less)
+
+```{r convert true false to logical, echo = F, message = F}
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+namesToConvert <- names(scoobydoo)[18:32]
+
+convertedData <- sapply(X = namesToConvert, FUN = function(name){return(as.logical(scoobydoo[[name]]))})
+
+# Take the column sums to give the number of times each character was captured or caught the culprit
+numberHolder <- data.frame(colSums(convertedData, na.rm = T))
+
+# Need to transform to long format in order to plot. Split the row names on '_' to 
+# get 1) whether the character was captured or caught the culprit, and 2) who the character is
+actionHolder <- matrix(unlist(strsplit(rownames(numberHolder), split = "_")), ncol = 2, byrow = T)
+
+numberHolder$action <- actionHolder[,1]
+numberHolder$name <- actionHolder[,2]
+
+names(numberHolder) <- c("numTimes", "action", "name")
+
+# Remove the 'unmask' entries
+holderForPlot <- numberHolder %>% filter(action != "unmask")
+
+ggplot(data = holderForPlot, mapping = aes(x = numTimes, y = name)) + 
+    geom_line(aes(group = name)) + 
+    geom_point(aes(color = action), size =4) + 
+    theme_bw()
+
+```
