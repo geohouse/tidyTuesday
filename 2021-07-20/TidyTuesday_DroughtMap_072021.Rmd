@@ -71,12 +71,40 @@ all_df %>%
 
 ```
 
+
+
 ```{r read in data, echo = F, message= F}
 
-droughtData <- read_csv("./tabulated_categoricalDroughtData_2001_2021.csv")
+droughtData <- read_csv(file = "./tabulated_categoricalDroughtData_2001_2021.csv")
 
 ```
 
+#### Use the `lag` function in `dplyr` to calculate the change in the percentages over time of area and people affected for each drought category in each state
+
+```{r calculate changes in percentages between measurements, echo = F, message = F}
+
+droughtData$drought_lvl <- as.factor(droughtData$drought_lvl)
+
+# Need the as.numeric(NA) here because otherwise NA evaluates as a logical, not numeric, which is what's required for the other entries in the vector of the case_when.
+droughtData_changes <- droughtData %>% group_by(state_abb, drought_lvl) %>%
+    mutate(changeAreaPct = case_when(drought_lvl == "None" ~ as.numeric(NA),
+                                     drought_lvl %in% c("D0", "D1", "D2", "D3","D4") ~ area_pct - lag(x = area_pct, n = 1, order_by = map_date)),
+           changePopPct = case_when(drought_lvl == "None" ~ as.numeric(NA),
+                                    drought_lvl %in% c("D0", "D1", "D2", "D3", "D4") ~ pop_pct - lag(x = pop_pct, n = 1, order_by = map_date)))
+
+
+```
+
+```{r graph changes over time by drought level, echo = FALSE, message = FALSE}
+
+library(ggplot2)
+library(lubridate)
+
+droughtData_changes %>% filter(drought_lvl == "D4") %>% group_by(state_abb) %>%
+    ggplot(data = ., mapping = aes(x = valid_start, y = changeAreaPct, group = state_abb)) + 
+    geom_line(color = "#AAAAAA66") + geom_vline(xintercept = seq.Date(from = mdy("01-01-2000"), to = mdy("01-01-2022"), by = "years"), color = "#0000FF99") + theme_classic() + ggtitle("D4 drought severity for all states") + xlab("Year") + ylab("Change in percentage of area \nwith this drought severity") + theme(axis.text.x=element_text(angle = -90, vjust = 0.5)) 
+
+```
 
 #### The values for population and area affected by drought are cumulative across the 5 drought levels (D0-D4), i.e. values in D0 are totals of sum(D0:D4). To revert these to actual values, group by state and date, then subtract the next higher drought level data from each using the `lead` verb in `dplyr`
 
